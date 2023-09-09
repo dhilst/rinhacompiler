@@ -58,4 +58,4 @@ def eval_(node, env: dict[str, Any]):
 
 ast = json.load(sys.stdin)
 
-print(eval_(ast["expression"], {}))
+eval_(ast["expression"], {})
