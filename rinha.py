@@ -1,7 +1,6 @@
 from typing import Any
 import sys
 import json
-from frozendict import frozendict
 import operator as op
 from dataclasses import dataclass
 from functools import partial
@@ -18,7 +17,7 @@ class Symbol(Node):
     name: str
 
 
-def eval_(node, env: frozendict[str, Any]):
+def eval_(node, env: dict[str, Any]):
     match node:
         case {"kind": "Let", "name": name, "value": value, "next": next_}:
             name = name["text"]
@@ -72,4 +71,4 @@ def eval_(node, env: frozendict[str, Any]):
 
 ast = json.load(sys.stdin)
 
-print(eval_(ast["expression"], frozendict()))
+print(eval_(ast["expression"], {}))
