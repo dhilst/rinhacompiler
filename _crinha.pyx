@@ -6,28 +6,29 @@ import operator as op
 
 def eval_(node, env: dict[str, Any]):
     if type(node) is dict:
-        if node["kind"] == "Let":
+        kind = node["kind"]
+        if kind == "Let":
             name = node["name"]["text"]
             env = env | {name: node["value"]}
             return eval_(node["next"], env)
-        elif node["kind"] == "Function":
+        elif kind == "Function":
             pnames = map(op.itemgetter("text"), node["parameters"])
             return lambda *args: eval_(
                 node["value"], env | {p: a for p, a in zip(pnames, args)}
             )
-        elif node["kind"] == "Print":
+        elif kind == "Print":
             print(eval_(node["value"], env))
             return
-        elif node["kind"] == "Call":
+        elif kind == "Call":
             callee = eval_(node["callee"], env)
             arguments = map(lambda arg: eval_(arg, env), node["arguments"])
             assert callable(callee), f"Not a function {callee}"
             return callee(*arguments)
-        elif node["kind"] == "Var":
+        elif kind == "Var":
             return eval_(env[node["text"]], env)
-        elif node["kind"] == "Int":
+        elif kind == "Int":
             return int(node["value"])
-        elif node["kind"] == "Binary":
+        elif kind == "Binary":
             lhs = eval_(node["lhs"], env)
             rhs = eval_(node["rhs"], env)
             op_mapping = {
@@ -38,7 +39,7 @@ def eval_(node, env: dict[str, Any]):
                 "Lt": op.lt,
             }
             return op_mapping[node["op"]](lhs, rhs)
-        elif node["kind"] == "If":
+        elif kind == "If":
             if eval_(node["condition"], env):
                 return eval_(node["then"], env)
             else:
@@ -51,5 +52,3 @@ def eval_(node, env: dict[str, Any]):
         return node
     else:
         raise RuntimeError(f"Unknown node {node}")
-
-

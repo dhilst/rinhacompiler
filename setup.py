@@ -2,5 +2,5 @@ from setuptools import setup
 from Cython.Build import cythonize
 
 setup(
-    ext_modules=cythonize("_crinha.pyx"),
+    ext_modules=cythonize("_crinha.pyx", annotate=True),
 )
