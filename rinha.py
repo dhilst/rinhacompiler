@@ -13,7 +13,7 @@ def eval_(node, env: dict[str, Any]):
         case {"kind": "Function", "parameters": parameters, "value": value}:
             pnames = map(op.itemgetter("text"), parameters)
             return lambda *args: eval_(
-                value, env | {p: a for p, a in dict(zip(pnames, args)).items()}
+                value, env | {p: a for p, a in zip(pnames, args)}
             )
         case {"kind": "Print", "value": value}:
             print(eval_(value, env))
