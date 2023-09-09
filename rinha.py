@@ -2,19 +2,6 @@ from typing import Any
 import sys
 import json
 import operator as op
-from dataclasses import dataclass
-from functools import partial
-
-dataclass = partial(dataclass, frozen=True)
-
-
-class Node:
-    pass
-
-
-@dataclass
-class Symbol(Node):
-    name: str
 
 
 def eval_(node, env: dict[str, Any]):
