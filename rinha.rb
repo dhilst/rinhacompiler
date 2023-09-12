@@ -1,5 +1,6 @@
 require 'json'
-
+require "llvm/core"
+require "llvm/execution_engine"
 
 def makeop(op) 
   ->(a, b){ a.send(op, b) }
@@ -200,12 +201,104 @@ def compile_to_python(node, context=nil)
 end
 
 
+
+
+def compile_to_llvm(node, mod, builder=nil)
+  case node
+  in {kind: "Let", name: { text: function_name }, value: { kind: "Function", parameters:, value: body }, next: next_ }
+    mod.functions.add(function_name, parameters.map {|| LLVM::Int32 }, LLVM::Int32) do |function, string|
+      function.basic_blocks.append.build do |b|
+        compile_to_llvm(body, mod, b);
+      end
+    end
+  in {kind: "Let", name: { text: }, value:, next: next_ }
+    fail "todo Let"
+  in {kind: "Function", parameters:, value: body}
+    fail "todo Function"
+  in {kind: "Print", value: }
+    value = compile_to_llvm(value, mod, builder)
+    cputs = mod.functions.add("puts", [LLVM.Pointer(LLVM::Int8)], LLVM::Int32) do |function, string|
+      function.add_attribute :no_unwind_attribute
+      string.add_attribute :no_capture_attribute
+    end
+    mod.functions.add("main", [], LLVM::Int32).basic_blocks.append.build do |b|
+      hello = mod.globals.add(value, :hello) do |var|
+        var.linkage = :private
+        var.global_constant = true
+        var.unnamed_addr = true
+        var.initializer = value
+      end
+
+      zero = LLVM.Int(0) # a LLVM Constant value
+
+      # Read here what GetElementPointer (gep) means http://llvm.org/releases/3.2/docs/GetElementPtr.html
+      # Convert [13 x i8]* to i8  *...
+      cast210 = b.gep(hello, [zero, zero], 'cast210')
+      # Call puts function to write out the string to stdout.
+      b.call(cputs, cast210)
+      b.ret(LLVM::Int(0))
+    end
+  in {kind: "Call", callee:, arguments:}
+    fail "todo Call"
+  in {kind: "Var", text: name}
+    fail "todo Var"
+  in {kind: "Str", value: value}
+     LLVM::ConstantArray.string(value)
+  in {kind: "Int", value: value}
+    fail "todo Int"
+  in {kind: "Binary", lhs:, op:, rhs:}
+    fail "todo Binary"
+  in {kind: "If", condition:, then: then_, otherwise:}
+    fail "nil builder while compiling if" if builder.nil?
+    cond = compile_to_llvm
+  else
+    puts "unexpected node #{node}"
+    return
+  end
+
+  # hello = mod.globals.add(LLVM::ConstantArray.string("Hello"), :hello) do |var|
+  #   var.linkage = :private
+  #   var.global_constant = true
+  #   var.unnamed_addr = true
+  #   var.initializer = LLVM::ConstantArray.string("Hello")
+  # end
+
+  # cputs = mod.functions.add("puts", [LLVM.Pointer(LLVM::Int8)], LLVM::Int32) do |function, string|
+  #   function.add_attribute :no_unwind_attribute
+  #   string.add_attribute :no_capture_attribute
+  # end
+  
+  # main = mod.functions.add('main', [], LLVM::Int32) do |function|
+  #   function.basic_blocks.append.build do |b|
+  #     zero = LLVM.Int(0)
+  #     cast210 = b.gep hello, [zero, zero], 'cast210'
+  #     b.call cputs, cast210
+  #     b.ret zero
+  #   end
+  # end
+
+  # mod.dump
+
+  # puts "--------------------"
+  
+  # LLVM.init_jit
+
+  # engine = LLVM::JITCompiler.new(mod)
+  # engine.run_function(main)
+  # engine.dispose
+end
+
+
+
 case ARGV[0]
 when "compile_to_ruby"
   print(compile_to_ruby(JSON.parse(STDIN.read, symbolize_names: true)[:expression]))
 when "compile_to_python"
   print(compile_to_python(JSON.parse(STDIN.read, symbolize_names: true)[:expression]))
-
+when "compile_to_llvm"
+  mod = LLVM::Module.new('rinha')
+  compile_to_llvm(JSON.parse(STDIN.read, symbolize_names: true)[:expression], mod)
+  mod.dump
 when "eval"
   eval_(JSON.parse(STDIN.read, symbolize_names: true)[:expression], {})
 else
