@@ -1,5 +1,6 @@
 # Running
 
 ```
-python3 rinha.py  < ../rinha-de-compiler/files/fib.json
+docker build -t gkosrinha .
+docker run -v $PWD/../rinha-compiler/files/combination.json:/var/rinha/source.rinha.json gkosrinha
 ```
