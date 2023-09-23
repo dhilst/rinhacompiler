@@ -203,7 +203,7 @@ end
 
 
 
-def compile_to_llvm(node, mod, builder=nil)
+def compile_to_llvm(node, mod, builder)
   case node
   in {kind: "Let", name: { text: function_name }, value: { kind: "Function", parameters:, value: body }, next: next_ }
     mod.functions.add(function_name, parameters.map {|| LLVM::Int32 }, LLVM::Int32) do |function, string|
@@ -217,35 +217,31 @@ def compile_to_llvm(node, mod, builder=nil)
     fail "todo Function"
   in {kind: "Print", value: }
     value = compile_to_llvm(value, mod, builder)
-    cputs = mod.functions.add("puts", [LLVM.Pointer(LLVM::Int8)], LLVM::Int32) do |function, string|
-      function.add_attribute :no_unwind_attribute
-      string.add_attribute :no_capture_attribute
-    end
-    mod.functions.add("main", [], LLVM::Int32).basic_blocks.append.build do |b|
-      hello = mod.globals.add(value, :hello) do |var|
-        var.linkage = :private
-        var.global_constant = true
-        var.unnamed_addr = true
-        var.initializer = value
-      end
+    zero = LLVM.Int(0) # a LLVM Constant value
 
-      zero = LLVM.Int(0) # a LLVM Constant value
-
-      # Read here what GetElementPointer (gep) means http://llvm.org/releases/3.2/docs/GetElementPtr.html
-      # Convert [13 x i8]* to i8  *...
-      cast210 = b.gep(hello, [zero, zero], 'cast210')
-      # Call puts function to write out the string to stdout.
-      b.call(cputs, cast210)
-      b.ret(LLVM::Int(0))
-    end
+    # Read here what GetElementPointer (gep) means http://llvm.org/releases/3.2/docs/GetElementPtr.html
+    # Convert [13 x i8]* to i8  *...
+    # cast210 = builder.gep(value, [zero, zero], 'cast210')
+    # Call puts function to write out the string to stdout.
+    cputs = mod.functions.named("puts")
+    atoi = mod.functions.named("itoa")
+    builder.call(cputs, builder.call(atoi, value))
   in {kind: "Call", callee:, arguments:}
     fail "todo Call"
   in {kind: "Var", text: name}
     fail "todo Var"
   in {kind: "Str", value: value}
-     LLVM::ConstantArray.string(value)
+    value = LLVM::ConstantArray.string(value)
+    mod.globals.add(value, :constant) do |var|
+      var.linkage = :private
+      var.global_constant = true
+      var.unnamed_addr = true
+      var.initializer = value
+    end
   in {kind: "Int", value: value}
-    fail "todo Int"
+    LLVM::Int(value)
+  in {kind: "Binary", lhs:, op: "Add", rhs:}
+    builder.add(compile_to_llvm(lhs, mod, builder), compile_to_llvm(rhs, mod, builder))
   in {kind: "Binary", lhs:, op:, rhs:}
     fail "todo Binary"
   in {kind: "If", condition:, then: then_, otherwise:}
@@ -297,7 +293,20 @@ when "compile_to_python"
   print(compile_to_python(JSON.parse(STDIN.read, symbolize_names: true)[:expression]))
 when "compile_to_llvm"
   mod = LLVM::Module.new('rinha')
-  compile_to_llvm(JSON.parse(STDIN.read, symbolize_names: true)[:expression], mod)
+
+  # puts function
+  cputs = mod.functions.add("puts", [LLVM.Pointer(LLVM::Int8)], LLVM::Int32) do |function, string|
+    function.add_attribute :no_unwind_attribute
+    string.add_attribute :no_capture_attribute
+  end
+
+  mod.functions.add("itoa", [LLVM::Int32], LLVM.Pointer(LLVM::Int8)) do |function, string|
+  end
+
+  mod.functions.add("main", [], LLVM::Int32).basic_blocks.append.build do |b|
+    compile_to_llvm(JSON.parse(STDIN.read, symbolize_names: true)[:expression], mod, b)
+    b.ret(LLVM::Int(0))
+  end
   mod.dump
 when "eval"
   eval_(JSON.parse(STDIN.read, symbolize_names: true)[:expression], {})
