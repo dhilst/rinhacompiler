@@ -1,0 +1,8 @@
+FROM python:3.10-slim
+
+WORKDIR /
+COPY setup.py _crinha.pyx crinha.py rinha.rb /
+COPY fib.json /var/rinha/source.rinha.json
+RUN apt-get update && apt-get install -y gcc ruby
+RUN pip install Cython
+CMD ["sh", "-c", "ruby rinha.rb compile_to_python < /var/rinha/source.rinha.json > _rinha_python_out.pyx && python3 setup.py build_ext --inplace && python3 -c 'import _rinha_python_out'"]

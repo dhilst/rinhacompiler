@@ -1,7 +1,4 @@
 require 'json'
-require "llvm/core"
-require "llvm/execution_engine"
-
 def makeop(op) 
   ->(a, b){ a.send(op, b) }
 end
@@ -292,6 +289,9 @@ when "compile_to_ruby"
 when "compile_to_python"
   print(compile_to_python(JSON.parse(STDIN.read, symbolize_names: true)[:expression]))
 when "compile_to_llvm"
+  require "llvm/core"
+  require "llvm/execution_engine"
+
   mod = LLVM::Module.new('rinha')
 
   # puts function
