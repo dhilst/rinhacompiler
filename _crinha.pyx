@@ -4,6 +4,12 @@ import json
 import operator as op
 
 
+def add(a, b):
+    if type(a) is str or type(b) is str:
+        return op.add(str(a), str(b))
+    return op.add(a, b)
+
+
 def eval_(node, env: dict[str, Any]):
     if type(node) is dict:
         kind = node["kind"]
@@ -35,7 +41,7 @@ def eval_(node, env: dict[str, Any]):
                 "Eq": op.eq,
                 "Or": op.or_,
                 "Sub": op.sub,
-                "Add": op.add,
+                "Add": add,
                 "Lt": op.lt,
             }
             return op_mapping[node["op"]](lhs, rhs)
@@ -44,6 +50,8 @@ def eval_(node, env: dict[str, Any]):
                 return eval_(node["then"], env)
             else:
                 return eval_(node["otherwise"], env)
+        elif kind == "Str":
+            return str(node["value"])
         else:
             raise RuntimeError(f"Unknown AST node {node}")
     elif callable(node):
